@@ -250,7 +250,7 @@ async function onAddToBinder() {
   const quantity = Math.max(1, Number(els.quantityInput.value) || 1);
   const condition = els.conditionSelect.value;
   const selectedFinish = els.finishSelect.value;
-  const finish = resolveFinish(printing, selectedFinish);
+  const finish = resolveFinish(selectedFinish);
   const prices = await fetchPriceForPrinting(printing, finish);
 
   const entry = {
@@ -373,20 +373,8 @@ function setSearchStatus(text) {
   els.searchStatus.textContent = text;
 }
 
-function resolveFinish(printing, selectedFinish) {
-  if (selectedFinish && selectedFinish !== "auto") {
-    return selectedFinish;
-  }
-
-  if (printing.prices?.eur_etched) {
-    return "etched";
-  }
-
-  if (printing.foil && printing.prices?.eur_foil) {
-    return "foil";
-  }
-
-  return "nonfoil";
+function resolveFinish(selectedFinish) {
+  return selectedFinish;
 }
 
 async function fetchPriceForPrinting(printing, finish) {
@@ -601,13 +589,26 @@ function createBinderCard(item) {
     if (newQty === null) return;
 
     const qty = Math.max(1, Number(newQty) || item.quantity);
-    const newCondition = prompt(`Neuer Zustand für ${item.name}`, item.condition);
+
+    const newCondition = prompt(
+      `Zustand (NM / EX / GD / LP / PL / PO)`,
+      item.condition
+    );
     if (newCondition === null) return;
 
+    const newFinish = prompt(
+      `Finish (nonfoil / foil / etched)`,
+      item.finish
+    );
+    if (newFinish === null) return;
+
     item.quantity = qty;
-    item.condition = newCondition.trim().toUpperCase() || item.condition;
+    item.condition = newCondition.trim().toUpperCase();
+    item.finish = newFinish.trim().toLowerCase();
+
     persistBinder();
     renderBinder();
+
     showToast(`${item.name} wurde aktualisiert.`, "success");
   });
 
