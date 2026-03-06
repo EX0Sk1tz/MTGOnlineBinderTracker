@@ -119,7 +119,13 @@ function bindEvents() {
 
 function openAddDialog() {
   document.body.style.overflow = "hidden";
+
+  els.quantityInput.value = "1";
+  els.conditionSelect.value = "NM";
+  els.finishSelect.value = "nonfoil";
+
   els.addCardDialog.showModal();
+
   setTimeout(() => {
     els.searchInput.focus();
   }, 30);
@@ -271,6 +277,7 @@ async function onAddToBinder() {
       printing.card_faces?.[0]?.image_uris?.large ||
       "",
     scryfallUri: printing.scryfall_uri || "",
+    cardmarketUrl: buildCardmarketUrl(printing),
     quantity,
     condition,
     finish,
@@ -348,6 +355,18 @@ function renderPrintingGrid(items) {
 
     els.printingGrid.appendChild(button);
   });
+}
+
+function buildCardmarketUrl(printing) {
+  const parts = [
+    printing.name || "",
+    printing.set_name || "",
+    printing.collector_number || ""
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  return `https://www.cardmarket.com/de/Magic/Products/Search?searchString=${encodeURIComponent(parts)}`;
 }
 
 function updatePrintingSelectionInfo(item) {
@@ -526,6 +545,7 @@ function createBinderCard(item) {
   const info = node.querySelector(".binder-card-info");
   const refreshBtn = node.querySelector(".refresh-btn");
   const editBtn = node.querySelector(".edit-btn");
+  const marketBtn = node.querySelector(".market-btn");
   const deleteBtn = node.querySelector(".delete-btn");
 
   img.src = item.imageUrl || "";
@@ -533,6 +553,7 @@ function createBinderCard(item) {
 
   title.textContent = item.name;
   setcode.textContent = (item.set || "").toUpperCase();
+  marketBtn.href = item.cardmarketUrl || buildCardmarketUrl(item);
 
   const pills = [];
 

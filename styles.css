@@ -227,9 +227,21 @@ p {
 
 .binder-card-actions {
   display: flex;
+  flex-direction: column;
   gap: 10px;
   flex-wrap: wrap;
   margin-top: auto;
+}
+
+.binder-card-actions button {
+  width: 100%;
+}
+
+.binder-card-actions a {
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .primary-btn {
@@ -576,14 +588,6 @@ p {
     grid-template-columns: 1fr;
   }
 
-  .binder-card-actions {
-    flex-direction: column;
-  }
-
-  .binder-card-actions button {
-    width: 100%;
-  }
-
   .toast-container {
     left: calc(12px + var(--safe-left));
     right: calc(12px + var(--safe-right));
@@ -593,6 +597,10 @@ p {
   .toast {
     min-width: 0;
     max-width: none;
+    width: 100%;
+  }
+
+  .binder-card-actions a {
     width: 100%;
   }
 }
