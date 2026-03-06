@@ -78,6 +78,27 @@ function init() {
   hydrateSettingsUi();
   bindEvents();
   renderBinder();
+  hydrateMissingBinderMetadata();
+}
+
+async function hydrateMissingBinderMetadata() {
+  const itemsToUpdate = state.binder.filter((item) => !item.typeLine && item.cardId);
+
+  if (itemsToUpdate.length === 0) {
+    return;
+  }
+
+  for (const item of itemsToUpdate) {
+    try {
+      const printing = await loadPrintingById(item.cardId);
+      item.typeLine = printing.type_line || "";
+    } catch (error) {
+      console.error(`Metadaten konnten nicht geladen werden für ${item.name}`, error);
+    }
+  }
+
+  persistBinder();
+  renderBinder();
 }
 
 function bindEvents() {
@@ -277,7 +298,6 @@ async function onAddToBinder() {
       printing.card_faces?.[0]?.image_uris?.large ||
       "",
     scryfallUri: printing.scryfall_uri || "",
-    cardmarketUrl: buildCardmarketUrl(printing),
     quantity,
     condition,
     finish,
@@ -357,16 +377,16 @@ function renderPrintingGrid(items) {
   });
 }
 
-function buildCardmarketUrl(printing) {
-  const parts = [
-    printing.name || "",
-    printing.set_name || "",
-    printing.collector_number || ""
-  ]
-    .filter(Boolean)
-    .join(" ");
+function buildCardmarketUrl(item) {
+  const queryParts = [
+    item.name || "",
+    item.setName || "",
+    item.collectorNumber || ""
+  ].filter(Boolean);
 
-  return `https://www.cardmarket.com/de/Magic/Products/Search?searchString=${encodeURIComponent(parts)}`;
+  const query = queryParts.join(" ");
+
+  return `https://www.cardmarket.com/de/Magic/Products/Search?searchString=${encodeURIComponent(query)}`;
 }
 
 function updatePrintingSelectionInfo(item) {
@@ -527,6 +547,20 @@ function renderBinder() {
         els.binderGrid.appendChild(createBinderCard(item));
       });
     });
+  } else if (group === "type") {
+    const grouped = groupBy(items, (x) => getPrimaryCardType(x.typeLine));
+
+    Object.entries(grouped).forEach(([typeName, groupItems]) => {
+      const groupHeader = document.createElement("div");
+      groupHeader.className = "empty-state";
+      groupHeader.style.gridColumn = "1 / -1";
+      groupHeader.innerHTML = `<strong>${escapeHtml(typeName || "Unbekannter Typ")}</strong>`;
+      els.binderGrid.appendChild(groupHeader);
+
+      groupItems.forEach((item) => {
+        els.binderGrid.appendChild(createBinderCard(item));
+      });
+    });
   } else {
     items.forEach((item) => {
       els.binderGrid.appendChild(createBinderCard(item));
@@ -542,10 +576,10 @@ function createBinderCard(item) {
   const img = node.querySelector(".binder-card-image");
   const title = node.querySelector(".binder-card-title");
   const setcode = node.querySelector(".binder-card-setcode");
+  const cardmarketLink = node.querySelector(".cardmarket-link");
   const info = node.querySelector(".binder-card-info");
   const refreshBtn = node.querySelector(".refresh-btn");
   const editBtn = node.querySelector(".edit-btn");
-  const marketBtn = node.querySelector(".market-btn");
   const deleteBtn = node.querySelector(".delete-btn");
 
   img.src = item.imageUrl || "";
@@ -553,7 +587,7 @@ function createBinderCard(item) {
 
   title.textContent = item.name;
   setcode.textContent = (item.set || "").toUpperCase();
-  marketBtn.href = item.cardmarketUrl || buildCardmarketUrl(item);
+  cardmarketLink.href = buildCardmarketUrl(item);
 
   const pills = [];
 
@@ -699,6 +733,33 @@ function groupBy(items, keySelector) {
     acc[key].push(item);
     return acc;
   }, {});
+}
+
+function getPrimaryCardType(typeLine) {
+  if (!typeLine) {
+    return "Unbekannt";
+  }
+
+  const baseType = String(typeLine).split("—")[0].trim();
+
+  const priorities = [
+    "Creature",
+    "Instant",
+    "Sorcery",
+    "Artifact",
+    "Enchantment",
+    "Planeswalker",
+    "Land",
+    "Battle"
+  ];
+
+  for (const type of priorities) {
+    if (baseType.includes(type)) {
+      return type;
+    }
+  }
+
+  return baseType || "Unbekannt";
 }
 
 function formatCurrency(value, currency) {

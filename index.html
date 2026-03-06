@@ -49,10 +49,11 @@
 
         <div class="field">
           <label for="groupSelect">Gruppierung</label>
-          <select id="groupSelect">
-            <option value="none">Keine</option>
-            <option value="set">Nach Set</option>
-          </select>
+            <select id="groupSelect">
+              <option value="none">Keine</option>
+              <option value="set">Nach Set</option>
+              <option value="type">Nach Kartentyp</option>
+            </select>
         </div>
       </div>
     </section>
@@ -229,7 +230,10 @@
       <div class="binder-card-body">
         <div class="binder-card-header">
           <h3 class="binder-card-title"></h3>
-          <span class="binder-card-setcode"></span>
+          <div class="binder-card-header-right">
+            <a class="cardmarket-link" target="_blank" rel="noopener noreferrer">Cardmarket</a>
+            <span class="binder-card-setcode"></span>
+          </div>
         </div>
 
         <div class="binder-card-info"></div>
@@ -237,7 +241,6 @@
         <div class="binder-card-actions">
           <button class="refresh-btn secondary-btn" type="button">Preis aktualisieren</button>
           <button class="edit-btn secondary-btn" type="button">Bearbeiten</button>
-           <a class="market-btn secondary-btn" target="_blank" rel="noopener noreferrer">Cardmarket</a>
           <button class="delete-btn danger-btn" type="button">Löschen</button>
         </div>
       </div>

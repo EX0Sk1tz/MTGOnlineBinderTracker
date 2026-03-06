@@ -600,8 +600,17 @@ p {
     width: 100%;
   }
 
-  .binder-card-actions a {
-    width: 100%;
+  .binder-card-header {
+    align-items: flex-start;
+  }
+
+  .binder-card-header-right {
+    align-items: flex-end;
+  }
+
+  .cardmarket-link {
+    font-size: 11px;
+    padding: 6px 9px;
   }
 }
 
@@ -618,4 +627,32 @@ p {
   .printing-option-price {
     font-size: 11px;
   }
+}
+
+.binder-card-header-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.cardmarket-link {
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: #0d121a;
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.cardmarket-link:hover {
+  border-color: var(--accent);
+  background: #111827;
 }
