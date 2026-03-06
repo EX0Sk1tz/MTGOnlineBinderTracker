@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, viewport-fit=cover"
+  />
+  <title>MTG Binder Tracker</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="topbar-left">
+        <h1>MTG Binder Tracker</h1>
+        <p class="subtitle">Dein Binder, deine Printings, deine Preise</p>
+      </div>
+
+      <div class="topbar-actions">
+        <button id="openAddModalBtn" class="primary-btn" type="button">Karte hinzufügen</button>
+        <button id="exportBtn" class="secondary-btn" type="button">Export JSON</button>
+        <label class="import-label secondary-btn">
+          Import JSON
+          <input id="importInput" type="file" accept="application/json" hidden />
+        </label>
+        <button id="settingsBtn" class="secondary-btn" type="button">Settings</button>
+      </div>
+    </header>
+
+    <section class="toolbar card">
+      <div class="toolbar-grid">
+        <div class="field">
+          <label for="filterText">Name oder Set</label>
+          <input id="filterText" type="text" placeholder="Filtern..." />
+        </div>
+
+        <div class="field">
+          <label for="sortSelect">Sortierung</label>
+          <select id="sortSelect">
+            <option value="name-asc">Name A bis Z</option>
+            <option value="name-desc">Name Z bis A</option>
+            <option value="price-desc">Preis absteigend</option>
+            <option value="price-asc">Preis aufsteigend</option>
+            <option value="qty-desc">Menge absteigend</option>
+            <option value="set-desc">Neueste Edition zuerst</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="groupSelect">Gruppierung</label>
+          <select id="groupSelect">
+            <option value="none">Keine</option>
+            <option value="set">Nach Set</option>
+          </select>
+        </div>
+      </div>
+    </section>
+
+    <section class="stats-row">
+      <div class="stat card">
+        <span class="stat-label">Einträge</span>
+        <strong id="entryCount">0</strong>
+      </div>
+      <div class="stat card">
+        <span class="stat-label">Karten gesamt</span>
+        <strong id="cardCount">0</strong>
+      </div>
+      <div class="stat card">
+        <span class="stat-label">Gesamtwert</span>
+        <strong id="totalValue">0,00 €</strong>
+      </div>
+    </section>
+
+    <main>
+      <div id="binderGrid" class="binder-grid"></div>
+    </main>
+  </div>
+
+  <div id="toastContainer" class="toast-container"></div>
+
+  <dialog id="addCardDialog" class="app-dialog app-dialog-wide">
+    <form method="dialog" class="dialog-body">
+      <div class="dialog-header">
+        <div>
+          <h2>Karte hinzufügen</h2>
+          <p class="muted dialog-subtitle">Suche eine Karte und wähle dann das passende Printing</p>
+        </div>
+        <button id="closeAddModalBtn" class="secondary-btn icon-btn" type="submit" aria-label="Schließen">✕</button>
+      </div>
+
+      <div class="add-layout">
+        <aside class="add-sidebar">
+          <div class="field">
+            <label for="searchInput">Kartensuche</label>
+            <div class="search-row">
+              <input
+                id="searchInput"
+                type="text"
+                placeholder="Zum Beispiel Sol Ring, Rhystic Study, Lightning Bolt"
+                autocomplete="off"
+              />
+              <button id="searchBtn" type="button">Suchen</button>
+            </div>
+          </div>
+
+          <div id="searchStatus" class="muted"></div>
+
+          <div class="field">
+            <label for="resultSelect">Suchergebnisse</label>
+            <select id="resultSelect" size="12"></select>
+          </div>
+
+          <div class="field-grid add-options-grid">
+            <div class="field">
+              <label for="quantityInput">Menge</label>
+              <input id="quantityInput" type="number" min="1" step="1" value="1" />
+            </div>
+
+            <div class="field">
+              <label for="conditionSelect">Zustand</label>
+              <select id="conditionSelect">
+                <option value="NM">NM</option>
+                <option value="EX">EX</option>
+                <option value="GD">GD</option>
+                <option value="LP">LP</option>
+                <option value="PL">PL</option>
+                <option value="PO">PO</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label for="finishSelect">Finish</label>
+              <select id="finishSelect">
+                <option value="auto">Auto</option>
+                <option value="nonfoil">Nonfoil</option>
+                <option value="foil">Foil</option>
+                <option value="etched">Etched</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="dialog-footer-left">
+            <button id="addBtn" class="primary-btn" type="button">Zum Binder hinzufügen</button>
+          </div>
+        </aside>
+
+        <section class="add-content">
+          <div class="printing-headline-row">
+            <h3>Printings</h3>
+            <span id="printingSelectionInfo" class="muted">Noch kein Printing ausgewählt</span>
+          </div>
+          <div id="printingGrid" class="printing-grid"></div>
+        </section>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="settingsDialog" class="app-dialog">
+    <form method="dialog" class="settings-form">
+      <div class="dialog-header">
+        <div>
+          <h2>Settings</h2>
+          <p class="muted dialog-subtitle">Globale Anzeige für alle Binder Einträge</p>
+        </div>
+        <button class="secondary-btn icon-btn" type="submit" aria-label="Schließen">✕</button>
+      </div>
+
+      <div class="field">
+        <label for="priceSourceSelect">Preisquelle</label>
+        <select id="priceSourceSelect">
+          <option value="scryfall">Scryfall</option>
+          <option value="cardmarket-proxy">Cardmarket Proxy</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="cardmarketProxyInput">Cardmarket Proxy URL</label>
+        <input
+          id="cardmarketProxyInput"
+          type="text"
+          placeholder="Zum Beispiel https://dein-worker.example.com/api/price"
+        />
+      </div>
+
+      <div class="field">
+        <label>Angezeigte Infos auf allen Binder Karten</label>
+        <div class="settings-toggles">
+          <label class="toggle-row">
+            <input id="showSetToggle" type="checkbox" />
+            <span>Set</span>
+          </label>
+          <label class="toggle-row">
+            <input id="showQuantityToggle" type="checkbox" />
+            <span>Menge</span>
+          </label>
+          <label class="toggle-row">
+            <input id="showConditionToggle" type="checkbox" />
+            <span>Zustand</span>
+          </label>
+          <label class="toggle-row">
+            <input id="showFinishToggle" type="checkbox" />
+            <span>Finish</span>
+          </label>
+          <label class="toggle-row">
+            <input id="showUnitPriceToggle" type="checkbox" />
+            <span>Einzelpreis</span>
+          </label>
+          <label class="toggle-row">
+            <input id="showTotalPriceToggle" type="checkbox" />
+            <span>Gesamtpreis</span>
+          </label>
+          <label class="toggle-row">
+            <input id="showUpdatedAtToggle" type="checkbox" />
+            <span>Stand</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="dialog-actions">
+        <button id="saveSettingsBtn" class="primary-btn" type="button">Speichern</button>
+        <button class="secondary-btn" type="submit">Schließen</button>
+      </div>
+    </form>
+  </dialog>
+
+  <template id="binderCardTemplate">
+    <article class="binder-card card">
+      <img class="binder-card-image" alt="" />
+      <div class="binder-card-body">
+        <div class="binder-card-header">
+          <h3 class="binder-card-title"></h3>
+          <span class="binder-card-setcode"></span>
+        </div>
+
+        <div class="binder-card-info"></div>
+
+        <div class="binder-card-actions">
+          <button class="refresh-btn secondary-btn" type="button">Preis aktualisieren</button>
+          <button class="edit-btn secondary-btn" type="button">Bearbeiten</button>
+          <button class="delete-btn danger-btn" type="button">Löschen</button>
+        </div>
+      </div>
+    </article>
+  </template>
+
+  <script src="./app.js"></script>
+</body>
+</html>
