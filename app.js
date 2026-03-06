@@ -1,5 +1,5 @@
-const STORAGE_KEY = "mtg-binder-tracker-data-v4";
-const SETTINGS_KEY = "mtg-binder-tracker-settings-v4";
+const STORAGE_KEY = "mtg-binder-tracker-data-v3";
+const SETTINGS_KEY = "mtg-binder-tracker-settings-v3";
 
 const defaultSettings = {
   priceSource: "scryfall",
@@ -81,41 +81,59 @@ function init() {
   hydrateMissingBinderMetadata();
 }
 
+async function hydrateMissingBinderMetadata() {
+  const itemsToUpdate = state.binder.filter((item) => !item.typeLine && item.cardId);
+
+  if (itemsToUpdate.length === 0) {
+    return;
+  }
+
+  for (const item of itemsToUpdate) {
+    try {
+      const printing = await loadPrintingById(item.cardId);
+      item.typeLine = printing.type_line || "";
+    } catch (error) {
+      console.error(`Metadaten konnten nicht geladen werden für ${item.name}`, error);
+    }
+  }
+
+  persistBinder();
+  renderBinder();
+}
+
 function bindEvents() {
-  els.openAddModalBtn?.addEventListener("click", openAddDialog);
+  els.openAddModalBtn.addEventListener("click", openAddDialog);
+  els.searchBtn.addEventListener("click", onSearchClick);
 
-  els.searchBtn?.addEventListener("click", onSearchClick);
-
-  els.searchInput?.addEventListener("keydown", (e) => {
+  els.searchInput.addEventListener("keydown", (e) => {
     if (e.key === "Enter") {
       e.preventDefault();
       onSearchClick();
     }
   });
 
-  els.resultSelect?.addEventListener("change", onSelectSearchResult);
-  els.addBtn?.addEventListener("click", onAddToBinder);
+  els.resultSelect.addEventListener("change", onSelectSearchResult);
+  els.addBtn.addEventListener("click", onAddToBinder);
 
-  els.filterText?.addEventListener("input", renderBinder);
-  els.sortSelect?.addEventListener("change", renderBinder);
-  els.groupSelect?.addEventListener("change", renderBinder);
+  els.filterText.addEventListener("input", renderBinder);
+  els.sortSelect.addEventListener("change", renderBinder);
+  els.groupSelect.addEventListener("change", renderBinder);
 
-  els.exportBtn?.addEventListener("click", exportJson);
-  els.importInput?.addEventListener("change", importJson);
+  els.exportBtn.addEventListener("click", exportJson);
+  els.importInput.addEventListener("change", importJson);
 
-  els.settingsBtn?.addEventListener("click", () => {
+  els.settingsBtn.addEventListener("click", () => {
     hydrateSettingsUi();
-    document.body.style.overflow = "hidden";
     els.settingsDialog.showModal();
   });
 
-  els.saveSettingsBtn?.addEventListener("click", saveSettingsFromDialog);
+  els.saveSettingsBtn.addEventListener("click", saveSettingsFromDialog);
 
-  els.addCardDialog?.addEventListener("close", () => {
+  els.addCardDialog.addEventListener("close", () => {
     document.body.style.overflow = "";
   });
 
-  els.settingsDialog?.addEventListener("close", () => {
+  els.settingsDialog.addEventListener("close", () => {
     document.body.style.overflow = "";
   });
 }
@@ -123,28 +141,28 @@ function bindEvents() {
 function openAddDialog() {
   document.body.style.overflow = "hidden";
 
-  if (els.quantityInput) els.quantityInput.value = "1";
-  if (els.conditionSelect) els.conditionSelect.value = "NM";
-  if (els.finishSelect) els.finishSelect.value = "nonfoil";
+  els.quantityInput.value = "1";
+  els.conditionSelect.value = "NM";
+  els.finishSelect.value = "nonfoil";
 
   els.addCardDialog.showModal();
 
   setTimeout(() => {
-    els.searchInput?.focus();
+    els.searchInput.focus();
   }, 30);
 }
 
 function hydrateSettingsUi() {
-  if (els.priceSourceSelect) els.priceSourceSelect.value = state.settings.priceSource;
-  if (els.cardmarketProxyInput) els.cardmarketProxyInput.value = state.settings.cardmarketProxyUrl || "";
+  els.priceSourceSelect.value = state.settings.priceSource;
+  els.cardmarketProxyInput.value = state.settings.cardmarketProxyUrl || "";
 
-  if (els.showSetToggle) els.showSetToggle.checked = !!state.settings.visibleFields.set;
-  if (els.showQuantityToggle) els.showQuantityToggle.checked = !!state.settings.visibleFields.quantity;
-  if (els.showConditionToggle) els.showConditionToggle.checked = !!state.settings.visibleFields.condition;
-  if (els.showFinishToggle) els.showFinishToggle.checked = !!state.settings.visibleFields.finish;
-  if (els.showUnitPriceToggle) els.showUnitPriceToggle.checked = !!state.settings.visibleFields.unitPrice;
-  if (els.showTotalPriceToggle) els.showTotalPriceToggle.checked = !!state.settings.visibleFields.totalPrice;
-  if (els.showUpdatedAtToggle) els.showUpdatedAtToggle.checked = !!state.settings.visibleFields.updatedAt;
+  els.showSetToggle.checked = !!state.settings.visibleFields.set;
+  els.showQuantityToggle.checked = !!state.settings.visibleFields.quantity;
+  els.showConditionToggle.checked = !!state.settings.visibleFields.condition;
+  els.showFinishToggle.checked = !!state.settings.visibleFields.finish;
+  els.showUnitPriceToggle.checked = !!state.settings.visibleFields.unitPrice;
+  els.showTotalPriceToggle.checked = !!state.settings.visibleFields.totalPrice;
+  els.showUpdatedAtToggle.checked = !!state.settings.visibleFields.updatedAt;
 }
 
 async function onSearchClick() {
@@ -258,7 +276,8 @@ async function onAddToBinder() {
 
   const quantity = Math.max(1, Number(els.quantityInput.value) || 1);
   const condition = els.conditionSelect.value;
-  const finish = resolveFinish(printing, els.finishSelect.value);
+  const selectedFinish = els.finishSelect.value;
+  const finish = resolveFinish(selectedFinish);
   const prices = await fetchPriceForPrinting(printing, finish);
 
   const entry = {
@@ -272,7 +291,6 @@ async function onAddToBinder() {
     releasedAt: printing.released_at || "",
     lang: printing.lang || "en",
     rarity: printing.rarity || "",
-    typeLine: printing.type_line || "",
     imageUrl:
       printing.image_uris?.normal ||
       printing.image_uris?.large ||
@@ -359,9 +377,11 @@ function renderPrintingGrid(items) {
   });
 }
 
-function updatePrintingSelectionInfo(item) {
-  if (!els.printingSelectionInfo) return;
+function buildCardmarketUrl(item) {
+  return `https://www.cardmarket.com/de/Magic/Products/Search?searchString=${encodeURIComponent(item.name)}`;
+}
 
+function updatePrintingSelectionInfo(item) {
   if (!item) {
     els.printingSelectionInfo.textContent = "Noch kein Printing ausgewählt";
     return;
@@ -373,24 +393,18 @@ function updatePrintingSelectionInfo(item) {
 }
 
 function clearPrintingGrid() {
-  if (els.printingGrid) {
-    els.printingGrid.innerHTML = "";
-  }
+  els.printingGrid.innerHTML = "";
 }
 
 function clearSelect(select) {
-  if (select) {
-    select.innerHTML = "";
-  }
+  select.innerHTML = "";
 }
 
 function setSearchStatus(text) {
-  if (els.searchStatus) {
-    els.searchStatus.textContent = text;
-  }
+  els.searchStatus.textContent = text;
 }
 
-function resolveFinish(printing, selectedFinish) {
+function resolveFinish(selectedFinish) {
   return selectedFinish;
 }
 
@@ -484,18 +498,18 @@ function getPreviewPrice(printing) {
 }
 
 function renderBinder() {
-  const filter = els.filterText?.value.trim().toLowerCase() || "";
-  const sort = els.sortSelect?.value || "name-asc";
-  const group = els.groupSelect?.value || "none";
+  const filter = els.filterText.value.trim().toLowerCase();
+  const sort = els.sortSelect.value;
+  const group = els.groupSelect.value;
 
   let items = [...state.binder];
 
   if (filter) {
     items = items.filter((item) => {
       return (
-        String(item.name || "").toLowerCase().includes(filter) ||
-        String(item.setName || "").toLowerCase().includes(filter) ||
-        String(item.set || "").toLowerCase().includes(filter)
+        item.name.toLowerCase().includes(filter) ||
+        item.setName.toLowerCase().includes(filter) ||
+        item.set.toLowerCase().includes(filter)
       );
     });
   }
@@ -554,6 +568,7 @@ function createBinderCard(item) {
   const img = node.querySelector(".binder-card-image");
   const title = node.querySelector(".binder-card-title");
   const setcode = node.querySelector(".binder-card-setcode");
+  const cardmarketLink = node.querySelector(".cardmarket-link");
   const info = node.querySelector(".binder-card-info");
   const refreshBtn = node.querySelector(".refresh-btn");
   const editBtn = node.querySelector(".edit-btn");
@@ -564,6 +579,7 @@ function createBinderCard(item) {
 
   title.textContent = item.name;
   setcode.textContent = (item.set || "").toUpperCase();
+  cardmarketLink.href = buildCardmarketUrl(item);
 
   const pills = [];
 
@@ -616,38 +632,30 @@ function createBinderCard(item) {
   });
 
   editBtn.addEventListener("click", () => {
-    const newQtyRaw = prompt(`Neue Menge für ${item.name}`, String(item.quantity));
-    if (newQtyRaw === null) return;
+    const newQty = prompt(`Neue Menge für ${item.name}`, String(item.quantity));
+    if (newQty === null) return;
 
-    const parsedQty = Number(newQtyRaw);
-    const newQty = Number.isFinite(parsedQty) && parsedQty > 0 ? Math.floor(parsedQty) : item.quantity;
+    const qty = Math.max(1, Number(newQty) || item.quantity);
 
-    const newConditionRaw = prompt(`Neuer Zustand für ${item.name}\nErlaubt: NM, EX, GD, LP, PL, PO`, item.condition);
-    if (newConditionRaw === null) return;
+    const newCondition = prompt(
+      `Zustand (NM / EX / GD / LP / PL / PO)`,
+      item.condition
+    );
+    if (newCondition === null) return;
 
-    const normalizedCondition = String(newConditionRaw).trim().toUpperCase();
-    const validConditions = ["NM", "EX", "GD", "LP", "PL", "PO"];
-    if (!validConditions.includes(normalizedCondition)) {
-      showToast("Ungültiger Zustand. Erlaubt sind NM, EX, GD, LP, PL, PO.", "error");
-      return;
-    }
+    const newFinish = prompt(
+      `Finish (nonfoil / foil / etched)`,
+      item.finish
+    );
+    if (newFinish === null) return;
 
-    const newFinishRaw = prompt(`Neues Finish für ${item.name}\nErlaubt: nonfoil, foil, etched`, item.finish);
-    if (newFinishRaw === null) return;
-
-    const normalizedFinish = String(newFinishRaw).trim().toLowerCase();
-    const validFinishes = ["nonfoil", "foil", "etched"];
-    if (!validFinishes.includes(normalizedFinish)) {
-      showToast("Ungültiges Finish. Erlaubt sind nonfoil, foil, etched.", "error");
-      return;
-    }
-
-    item.quantity = newQty;
-    item.condition = normalizedCondition;
-    item.finish = normalizedFinish;
+    item.quantity = qty;
+    item.condition = newCondition.trim().toUpperCase();
+    item.finish = newFinish.trim().toLowerCase();
 
     persistBinder();
     renderBinder();
+
     showToast(`${item.name} wurde aktualisiert.`, "success");
   });
 
@@ -674,26 +682,6 @@ async function loadPrintingById(id) {
     throw new Error(`Karte konnte nicht geladen werden: ${response.status}`);
   }
   return response.json();
-}
-
-async function hydrateMissingBinderMetadata() {
-  const itemsToUpdate = state.binder.filter((item) => !item.typeLine && item.cardId);
-
-  if (itemsToUpdate.length === 0) {
-    return;
-  }
-
-  for (const item of itemsToUpdate) {
-    try {
-      const printing = await loadPrintingById(item.cardId);
-      item.typeLine = printing.type_line || "";
-    } catch (error) {
-      console.error(`Metadaten konnten nicht geladen werden für ${item.name}`, error);
-    }
-  }
-
-  persistBinder();
-  renderBinder();
 }
 
 function updateStats(items) {
@@ -745,7 +733,17 @@ function getPrimaryCardType(typeLine) {
   }
 
   const baseType = String(typeLine).split("—")[0].trim();
-  const priorities = ["Creature", "Instant", "Sorcery", "Artifact", "Enchantment", "Planeswalker", "Land", "Battle"];
+
+  const priorities = [
+    "Creature",
+    "Instant",
+    "Sorcery",
+    "Artifact",
+    "Enchantment",
+    "Planeswalker",
+    "Land",
+    "Battle"
+  ];
 
   for (const type of priorities) {
     if (baseType.includes(type)) {
@@ -871,7 +869,6 @@ async function importJson(event) {
     state.binder = parsed;
     persistBinder();
     renderBinder();
-    hydrateMissingBinderMetadata();
     showToast("Binder importiert.", "success");
   } catch (error) {
     console.error(error);
