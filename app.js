@@ -378,15 +378,7 @@ function renderPrintingGrid(items) {
 }
 
 function buildCardmarketUrl(item) {
-  const queryParts = [
-    item.name || "",
-    item.setName || "",
-    item.collectorNumber || ""
-  ].filter(Boolean);
-
-  const query = queryParts.join(" ");
-
-  return `https://www.cardmarket.com/de/Magic/Products/Search?searchString=${encodeURIComponent(query)}`;
+  return `https://www.cardmarket.com/de/Magic/Products/Search?searchString=${encodeURIComponent(item.name)}`;
 }
 
 function updatePrintingSelectionInfo(item) {
