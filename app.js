@@ -77,28 +77,50 @@ function init() {
   state.binder = loadBinder();
   hydrateSettingsUi();
   bindEvents();
-  renderBinder();
-  hydrateMissingBinderMetadata();
+  hydrateMissingBinderMetadata().finally(() => {
+    renderBinder();
+  });
 }
 
 async function hydrateMissingBinderMetadata() {
-  const itemsToUpdate = state.binder.filter((item) => !item.typeLine && item.cardId);
+  const itemsToUpdate = state.binder.filter((item) => {
+    return item.cardId && (!item.typeLine || String(item.typeLine).trim() === "");
+  });
 
   if (itemsToUpdate.length === 0) {
     return;
   }
 
+  let hasChanges = false;
+
   for (const item of itemsToUpdate) {
     try {
       const printing = await loadPrintingById(item.cardId);
-      item.typeLine = printing.type_line || "";
+
+      if (printing?.type_line) {
+        item.typeLine = printing.type_line;
+        hasChanges = true;
+      }
+
+      if ((!item.setName || !item.imageUrl) && printing) {
+        item.setName = item.setName || printing.set_name || "";
+        item.imageUrl =
+          item.imageUrl ||
+          printing.image_uris?.normal ||
+          printing.image_uris?.large ||
+          printing.card_faces?.[0]?.image_uris?.normal ||
+          printing.card_faces?.[0]?.image_uris?.large ||
+          "";
+        hasChanges = true;
+      }
     } catch (error) {
       console.error(`Metadaten konnten nicht geladen werden für ${item.name}`, error);
     }
   }
 
-  persistBinder();
-  renderBinder();
+  if (hasChanges) {
+    persistBinder();
+  }
 }
 
 function bindEvents() {
@@ -498,18 +520,19 @@ function getPreviewPrice(printing) {
 }
 
 function renderBinder() {
-  const filter = els.filterText.value.trim().toLowerCase();
-  const sort = els.sortSelect.value;
-  const group = els.groupSelect.value;
+  const filter = els.filterText?.value.trim().toLowerCase() || "";
+  const sort = els.sortSelect?.value || "name-asc";
+  const group = els.groupSelect?.value || "none";
 
   let items = [...state.binder];
 
   if (filter) {
     items = items.filter((item) => {
       return (
-        item.name.toLowerCase().includes(filter) ||
-        item.setName.toLowerCase().includes(filter) ||
-        item.set.toLowerCase().includes(filter)
+        String(item.name || "").toLowerCase().includes(filter) ||
+        String(item.setName || "").toLowerCase().includes(filter) ||
+        String(item.set || "").toLowerCase().includes(filter) ||
+        String(item.typeLine || "").toLowerCase().includes(filter)
       );
     });
   }
@@ -540,7 +563,7 @@ function renderBinder() {
       });
     });
   } else if (group === "type") {
-    const grouped = groupBy(items, (x) => getPrimaryCardType(x.typeLine));
+    const grouped = groupBy(items, (x) => getPrimaryCardTypeFromItem(x));
 
     Object.entries(grouped).forEach(([typeName, groupItems]) => {
       const groupHeader = document.createElement("div");
@@ -560,6 +583,22 @@ function renderBinder() {
   }
 
   updateStats(items);
+}
+
+function getPrimaryCardTypeFromItem(item) {
+  const typeLine = String(item.typeLine || "").trim();
+
+  if (typeLine) {
+    return getPrimaryCardType(typeLine);
+  }
+
+  const name = String(item.name || "").toLowerCase();
+
+  if (!name) {
+    return "Unbekannt";
+  }
+
+  return "Unbekannt";
 }
 
 function createBinderCard(item) {
@@ -732,7 +771,12 @@ function getPrimaryCardType(typeLine) {
     return "Unbekannt";
   }
 
-  const baseType = String(typeLine).split("—")[0].trim();
+  const normalized = String(typeLine)
+    .replace(/—/g, "-")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const baseType = normalized.split("-")[0].trim();
 
   const priorities = [
     "Creature",
@@ -749,6 +793,10 @@ function getPrimaryCardType(typeLine) {
     if (baseType.includes(type)) {
       return type;
     }
+  }
+
+  if (baseType.includes("Token")) {
+    return "Token";
   }
 
   return baseType || "Unbekannt";
