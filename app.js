@@ -7,7 +7,8 @@ import {
   loadCardsFromApi,
   createCardInApi,
   updateCardInApi,
-  deleteCardInApi
+  deleteCardInApi,
+  buildShareUrl
 } from "./api-client.js"
 
 const defaultSettings = {
@@ -92,7 +93,6 @@ const els = {
 init();
 
 async function init() {
-  console.log("Full URL:", window.location.href)
   console.log("URL access token:", new URL(window.location.href).searchParams.get("access"))
   console.log("Stored token before bootstrap:", localStorage.getItem("mtg-binder-access-token-v1"))
   try {
