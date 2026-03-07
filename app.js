@@ -1,6 +1,15 @@
 const STORAGE_KEY = "mtg-binder-tracker-data-v3";
 const SETTINGS_KEY = "mtg-binder-tracker-settings-v3";
 
+import {
+  bootstrapAccessTokenFromUrl,
+  verifyAccess,
+  loadCardsFromApi,
+  createCardInApi,
+  updateCardInApi,
+  deleteCardInApi
+} from "./api-client.js"
+
 const defaultSettings = {
   priceSource: "scryfall",
   cardmarketProxyUrl: "",
@@ -79,13 +88,35 @@ const els = {
 
 init();
 
-function init() {
-  state.binder = loadBinder();
-  hydrateSettingsUi();
-  bindEvents();
-  hydrateMissingBinderMetadata().finally(() => {
-    renderBinder();
-  });
+async function init() {
+  try {
+    bootstrapAccessTokenFromUrl()
+    await verifyAccess()
+
+    state.binder = await loadCardsFromApi()
+    hydrateSettingsUi()
+    bindEvents()
+    renderBinder()
+  } catch (error) {
+    console.error(error)
+    hydrateSettingsUi()
+    bindEvents()
+    renderAuthRequiredState()
+    showToast("Kein gültiger Zugriff. Öffne die Seite über deinen QR Code.", "error")
+  }
+}
+
+function renderAuthRequiredState() {
+  els.binderGrid.innerHTML = `
+    <div class="empty-state">
+      Zugriff fehlt oder ist ungültig.<br>
+      Öffne die Seite über deinen QR Code mit Access Token.
+    </div>
+  `
+
+  if (els.entryCount) els.entryCount.textContent = "0"
+  if (els.cardCount) els.cardCount.textContent = "0"
+  if (els.totalValue) els.totalValue.textContent = "0,00 €"
 }
 
 async function hydrateMissingBinderMetadata() {
@@ -300,21 +331,19 @@ async function onSelectSearchResult() {
 }
 
 async function onAddToBinder() {
-  const printing = state.printings.find((p) => p.id === state.selectedPrintingId);
+  const printing = state.printings.find((p) => p.id === state.selectedPrintingId)
 
   if (!printing) {
-    showToast("Bitte zuerst ein Printing auswählen.", "error");
-    return;
+    showToast("Bitte zuerst ein Printing auswählen.", "error")
+    return
   }
 
-  const quantity = Math.max(1, Number(els.quantityInput.value) || 1);
-  const condition = els.conditionSelect.value;
-  const selectedFinish = els.finishSelect.value;
-  const finish = resolveFinish(selectedFinish);
-  const prices = await fetchPriceForPrinting(printing, finish);
+  const quantity = Math.max(1, Number(els.quantityInput.value) || 1)
+  const condition = els.conditionSelect.value
+  const finish = els.finishSelect.value
+  const prices = await fetchPriceForPrinting(printing, finish)
 
   const entry = {
-    entryId: crypto.randomUUID(),
     cardId: printing.id,
     oracleId: printing.oracle_id || null,
     name: printing.name,
@@ -324,6 +353,7 @@ async function onAddToBinder() {
     releasedAt: printing.released_at || "",
     lang: printing.lang || "en",
     rarity: printing.rarity || "",
+    typeLine: printing.type_line || "",
     imageUrl:
       printing.image_uris?.normal ||
       printing.image_uris?.large ||
@@ -334,15 +364,19 @@ async function onAddToBinder() {
     quantity,
     condition,
     finish,
-    prices,
-    addedAt: new Date().toISOString()
-  };
+    prices
+  }
 
-  state.binder.push(entry);
-  persistBinder();
-  renderBinder();
-  showToast(`${entry.name} wurde hinzugefügt.`, "success");
-  els.addCardDialog.close();
+  try {
+    const created = await createCardInApi(entry)
+    state.binder.unshift(created)
+    renderBinder()
+    showToast(`${created.name} wurde hinzugefügt.`, "success")
+    els.addCardDialog.close()
+  } catch (error) {
+    console.error(error)
+    showToast("Karte konnte nicht gespeichert werden.", "error")
+  }
 }
 
 function populateResultSelect(items) {
@@ -667,56 +701,99 @@ function createBinderCard(item) {
 
   refreshBtn.addEventListener("click", async () => {
     try {
-      refreshBtn.disabled = true;
-      const printing = await loadPrintingById(item.cardId);
-      item.prices = await fetchPriceForPrinting(printing, item.finish);
-      persistBinder();
-      renderBinder();
-      showToast(`Preis für ${item.name} aktualisiert.`, "success");
+      refreshBtn.disabled = true
+      const printing = await loadPrintingById(item.cardId)
+      const newPrices = await fetchPriceForPrinting(printing, item.finish)
+
+      const updated = await updateCardInApi(item.id, {
+        quantity: item.quantity,
+        condition: item.condition,
+        finish: item.finish,
+        prices: newPrices
+      })
+
+      const idx = state.binder.findIndex(x => x.id === item.id)
+      if (idx >= 0) {
+        state.binder[idx] = updated
+      }
+
+      renderBinder()
+      showToast(`Preis für ${item.name} aktualisiert.`, "success")
     } catch (error) {
-      console.error(error);
-      showToast(`Preis für ${item.name} konnte nicht aktualisiert werden.`, "error");
+      console.error(error)
+      showToast(`Preis für ${item.name} konnte nicht aktualisiert werden.`, "error")
     } finally {
-      refreshBtn.disabled = false;
+      refreshBtn.disabled = false
     }
   });
 
-  editBtn.addEventListener("click", () => {
-    const newQty = prompt(`Neue Menge für ${item.name}`, String(item.quantity));
-    if (newQty === null) return;
+  editBtn.addEventListener("click", async () => {
+    const newQtyRaw = prompt(`Neue Menge für ${item.name}`, String(item.quantity))
+    if (newQtyRaw === null) return
 
-    const qty = Math.max(1, Number(newQty) || item.quantity);
+    const parsedQty = Number(newQtyRaw)
+    const newQty = Number.isFinite(parsedQty) && parsedQty > 0 ? Math.floor(parsedQty) : item.quantity
 
-    const newCondition = prompt(
-      `Zustand (NM / EX / GD / LP / PL / PO)`,
+    const newConditionRaw = prompt(
+      `Neuer Zustand für ${item.name}\nErlaubt: NM, EX, GD, LP, PL, PO`,
       item.condition
-    );
-    if (newCondition === null) return;
+    )
+    if (newConditionRaw === null) return
 
-    const newFinish = prompt(
-      `Finish (nonfoil / foil / etched)`,
+    const normalizedCondition = String(newConditionRaw).trim().toUpperCase()
+    const validConditions = ["NM", "EX", "GD", "LP", "PL", "PO"]
+    if (!validConditions.includes(normalizedCondition)) {
+      showToast("Ungültiger Zustand. Erlaubt sind NM, EX, GD, LP, PL, PO.", "error")
+      return
+    }
+
+    const newFinishRaw = prompt(
+      `Neues Finish für ${item.name}\nErlaubt: nonfoil, foil, etched`,
       item.finish
-    );
-    if (newFinish === null) return;
+    )
+    if (newFinishRaw === null) return
 
-    item.quantity = qty;
-    item.condition = newCondition.trim().toUpperCase();
-    item.finish = newFinish.trim().toLowerCase();
+    const normalizedFinish = String(newFinishRaw).trim().toLowerCase()
+    const validFinishes = ["nonfoil", "foil", "etched"]
+    if (!validFinishes.includes(normalizedFinish)) {
+      showToast("Ungültiges Finish. Erlaubt sind nonfoil, foil, etched.", "error")
+      return
+    }
 
-    persistBinder();
-    renderBinder();
+    try {
+      const updated = await updateCardInApi(item.id, {
+        quantity: newQty,
+        condition: normalizedCondition,
+        finish: normalizedFinish,
+        prices: item.prices
+      })
 
-    showToast(`${item.name} wurde aktualisiert.`, "success");
+      const idx = state.binder.findIndex(x => x.id === item.id)
+      if (idx >= 0) {
+        state.binder[idx] = updated
+      }
+
+      renderBinder()
+      showToast(`${item.name} wurde aktualisiert.`, "success")
+    } catch (error) {
+      console.error(error)
+      showToast("Karte konnte nicht aktualisiert werden.", "error")
+    }
   });
 
-  deleteBtn.addEventListener("click", () => {
-    const confirmed = confirm(`${item.name} wirklich löschen?`);
-    if (!confirmed) return;
+  deleteBtn.addEventListener("click", async () => {
+    const confirmed = confirm(`${item.name} wirklich löschen?`)
+    if (!confirmed) return
 
-    state.binder = state.binder.filter((x) => x.entryId !== item.entryId);
-    persistBinder();
-    renderBinder();
-    showToast(`${item.name} wurde entfernt.`, "info");
+    try {
+      await deleteCardInApi(item.id)
+      state.binder = state.binder.filter(x => x.id !== item.id)
+      renderBinder()
+      showToast(`${item.name} wurde entfernt.`, "info")
+    } catch (error) {
+      console.error(error)
+      showToast("Karte konnte nicht gelöscht werden.", "error")
+    }
   });
 
   return node;
@@ -829,18 +906,10 @@ function formatCurrency(value, currency) {
 }
 
 function loadBinder() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
     return [];
-  }
 }
 
 function persistBinder() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state.binder));
 }
 
 function loadSettings() {
@@ -914,27 +983,8 @@ function exportJson() {
 }
 
 async function importJson(event) {
-  const file = event.target.files?.[0];
-  if (!file) return;
-
-  try {
-    const text = await file.text();
-    const parsed = JSON.parse(text);
-
-    if (!Array.isArray(parsed)) {
-      throw new Error("Ungültige JSON Struktur");
-    }
-
-    state.binder = parsed;
-    persistBinder();
-    renderBinder();
-    showToast("Binder importiert.", "success");
-  } catch (error) {
-    console.error(error);
-    showToast("Import fehlgeschlagen.", "error");
-  } finally {
-    event.target.value = "";
-  }
+  event.target.value = ""
+  showToast("Import ist in der Backend Version deaktiviert.", "info")
 }
 
 function showToast(message, kind = "info") {
