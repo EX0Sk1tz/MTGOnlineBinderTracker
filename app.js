@@ -52,6 +52,7 @@ const els = {
 
   exportBtn: document.getElementById("exportBtn"),
   importInput: document.getElementById("importInput"),
+  importBtn: document.getElementById("importBtn"),
 
   settingsBtn: document.getElementById("settingsBtn"),
   settingsDialog: document.getElementById("settingsDialog"),
@@ -148,6 +149,9 @@ function bindEvents() {
 
   els.exportBtn.addEventListener("click", exportJson);
   els.importInput.addEventListener("change", importJson);
+  els.importBtn?.addEventListener("click", () => {
+  els.importInput.click();
+});
 
   els.settingsBtn.addEventListener("click", () => {
     hydrateSettingsUi();
