@@ -89,8 +89,12 @@ const els = {
 init();
 
 async function init() {
+  console.log("Full URL:", window.location.href)
+  console.log("URL access token:", new URL(window.location.href).searchParams.get("access"))
+  console.log("Stored token before bootstrap:", localStorage.getItem("mtg-binder-access-token-v1"))
   try {
     bootstrapAccessTokenFromUrl()
+    console.log("Stored token after bootstrap:", localStorage.getItem("mtg-binder-access-token-v1"))
 
     const auth = await verifyAccess()
     state.permissions.canWrite = !!auth?.canWrite
@@ -805,7 +809,7 @@ function createBinderCard(item) {
       showToast("Löschen ist mit diesem Zugriff nicht erlaubt.", "error")
       return
     }
-    
+
     const confirmed = confirm(`${item.name} wirklich löschen?`)
     if (!confirmed) return
 
