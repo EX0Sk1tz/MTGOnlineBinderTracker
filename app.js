@@ -30,8 +30,11 @@ const state = {
   selectedCardName: "",
   printings: [],
   selectedPrintingId: null,
-  settings: loadSettings()
-};
+  settings: loadSettings(),
+  permissions: {
+    canWrite: false
+  }
+}
 
 const els = {
   openAddModalBtn: document.getElementById("openAddModalBtn"),
@@ -207,6 +210,12 @@ function bindEvents() {
   });
 
   els.qrBtn?.addEventListener("click", openQrDialog);
+  els.closeQrDialogBtn?.addEventListener("click", () => {
+    els.qrDialog.close()
+  })
+  els.qrDialog?.addEventListener("close", () => {
+    document.body.style.overflow = ""
+  })
 }
 
 function openAddDialog() {
@@ -1049,23 +1058,26 @@ function escapeHtml(value) {
 }
 
 function openQrDialog() {
+  const shareUrl = buildShareUrl()
 
-  document.body.style.overflow = "hidden";
+  if (!els.qrDialog || !els.qrCode || !els.qrUrl) {
+    return
+  }
 
-  els.qrDialog.showModal();
+  document.body.style.overflow = "hidden"
+  els.qrDialog.showModal()
 
-  els.qrCode.innerHTML = "";
+  els.qrCode.innerHTML = ""
+  els.qrUrl.textContent = shareUrl
 
   new QRCode(els.qrCode, {
-    text: window.location.href,
-    width: 220,
-    height: 220,
+    text: shareUrl,
+    width: 240,
+    height: 240,
     colorDark: "#ffffff",
     colorLight: "#0f1115",
     correctLevel: QRCode.CorrectLevel.H
-  });
-
-  els.qrUrl.textContent = window.location.href;
+  })
 }
 
 function applyPermissionUi() {
