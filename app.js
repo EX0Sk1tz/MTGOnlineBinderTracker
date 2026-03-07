@@ -91,11 +91,14 @@ init();
 async function init() {
   try {
     bootstrapAccessTokenFromUrl()
-    await verifyAccess()
+
+    const auth = await verifyAccess()
+    state.permissions.canWrite = !!auth?.canWrite
 
     state.binder = await loadCardsFromApi()
     hydrateSettingsUi()
     bindEvents()
+    applyPermissionUi()
     renderBinder()
   } catch (error) {
     console.error(error)
@@ -331,6 +334,11 @@ async function onSelectSearchResult() {
 }
 
 async function onAddToBinder() {
+  if (!state.permissions.canWrite) {
+    showToast("Dieser Zugriff ist nur zum Ansehen.", "error")
+    return
+  }
+
   const printing = state.printings.find((p) => p.id === state.selectedPrintingId)
 
   if (!printing) {
@@ -697,6 +705,12 @@ function createBinderCard(item) {
     pills.push(createInfoPill(`Stand: ${updated}`));
   }
 
+  if (!state.permissions.canWrite) {
+    if (refreshBtn) refreshBtn.style.display = "none"
+    if (editBtn) editBtn.style.display = "none"
+    if (deleteBtn) deleteBtn.style.display = "none"
+  }
+
   info.innerHTML = pills.join("");
 
   refreshBtn.addEventListener("click", async () => {
@@ -728,6 +742,11 @@ function createBinderCard(item) {
   });
 
   editBtn.addEventListener("click", async () => {
+    if (!state.permissions.canWrite) {
+      showToast("Bearbeiten ist mit diesem Zugriff nicht erlaubt.", "error")
+      return
+    }
+
     const newQtyRaw = prompt(`Neue Menge für ${item.name}`, String(item.quantity))
     if (newQtyRaw === null) return
 
@@ -782,6 +801,11 @@ function createBinderCard(item) {
   });
 
   deleteBtn.addEventListener("click", async () => {
+    if (!state.permissions.canWrite) {
+      showToast("Löschen ist mit diesem Zugriff nicht erlaubt.", "error")
+      return
+    }
+    
     const confirmed = confirm(`${item.name} wirklich löschen?`)
     if (!confirmed) return
 
@@ -1038,5 +1062,14 @@ function openQrDialog() {
   });
 
   els.qrUrl.textContent = window.location.href;
+}
 
+function applyPermissionUi() {
+  if (els.openAddModalBtn) {
+    els.openAddModalBtn.style.display = state.permissions.canWrite ? "" : "none"
+  }
+
+  if (els.importBtn) {
+    els.importBtn.style.display = state.permissions.canWrite ? "" : "none"
+  }
 }

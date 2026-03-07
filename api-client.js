@@ -1,6 +1,8 @@
 const API_BASE = "https://mtg-binder-backend.onrender.com"
 const ACCESS_TOKEN_STORAGE_KEY = "mtg-binder-access-token-v1"
 
+export const READONLY_QR_ACCESS_TOKEN = "mtg-binder-readonly-token"
+
 export function getAccessToken() {
   return localStorage.getItem(ACCESS_TOKEN_STORAGE_KEY) || ""
 }
@@ -27,6 +29,12 @@ export function bootstrapAccessTokenFromUrl() {
   window.history.replaceState({}, "", url.toString())
 
   return tokenFromUrl
+}
+
+export function buildShareUrl() {
+  const url = new URL(window.location.origin + window.location.pathname)
+  url.searchParams.set("access", READONLY_QR_ACCESS_TOKEN)
+  return url.toString()
 }
 
 async function apiFetch(path, options = {}) {
