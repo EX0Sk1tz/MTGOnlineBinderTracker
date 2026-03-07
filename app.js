@@ -67,6 +67,11 @@ const els = {
   showUpdatedAtToggle: document.getElementById("showUpdatedAtToggle"),
   saveSettingsBtn: document.getElementById("saveSettingsBtn"),
 
+  qrBtn: document.getElementById("qrBtn"),
+  qrDialog: document.getElementById("qrDialog"),
+  qrCode: document.getElementById("qrCode"),
+  qrUrl: document.getElementById("qrUrl"),
+
   template: document.getElementById("binderCardTemplate"),
   toastContainer: document.getElementById("toastContainer")
 };
@@ -158,6 +163,8 @@ function bindEvents() {
   els.settingsDialog.addEventListener("close", () => {
     document.body.style.overflow = "";
   });
+
+  els.qrBtn?.addEventListener("click", openQrDialog);
 }
 
 function openAddDialog() {
@@ -957,4 +964,25 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+}
+
+function openQrDialog() {
+
+  document.body.style.overflow = "hidden";
+
+  els.qrDialog.showModal();
+
+  els.qrCode.innerHTML = "";
+
+  new QRCode(els.qrCode, {
+    text: window.location.href,
+    width: 220,
+    height: 220,
+    colorDark: "#ffffff",
+    colorLight: "#0f1115",
+    correctLevel: QRCode.CorrectLevel.H
+  });
+
+  els.qrUrl.textContent = window.location.href;
+
 }

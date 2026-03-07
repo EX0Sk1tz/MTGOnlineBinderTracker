@@ -20,11 +20,12 @@
       <div class="topbar-actions">
         <button id="openAddModalBtn" class="primary-btn" type="button">Karte hinzufügen</button>
         <button id="exportBtn" class="secondary-btn" type="button">Export JSON</button>
-        <label class="import-label secondary-btn">
-          Import JSON
-          <input id="importInput" type="file" accept="application/json" hidden />
-        </label>
+        <button id="importBtn" class="secondary-btn icon-btn" type="button"> Import JSON </button>
+        <input id="importInput" type="file" accept="application/json" hidden>
         <button id="settingsBtn" class="secondary-btn" type="button">Settings</button>
+        <button id="qrBtn" class="secondary-btn icon-btn" type="button">
+          📱 Öffnen auf Handy
+        </button>
       </div>
     </header>
 
@@ -248,5 +249,26 @@
   </template>
 
   <script src="./app.js"></script>
-</body>
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs/qrcode.min.js"></script>
+
+  <dialog id="qrDialog" class="app-dialog">
+    <div class="dialog-body qr-body">
+
+      <div class="dialog-header">
+        <div>
+          <h2>Auf dem Handy öffnen</h2>
+          <p class="dialog-subtitle">Scanne den QR Code</p>
+        </div>
+
+        <button class="icon-btn secondary-btn" onclick="document.getElementById('qrDialog').close()">✕</button>
+      </div>
+
+      <div class="qr-wrapper">
+        <div id="qrCode"></div>
+        <p class="muted qr-url" id="qrUrl"></p>
+      </div>
+
+    </div>
+  </dialog>
+  </body>
 </html>
