@@ -1,5 +1,5 @@
 const API_BASE = "https://mtg-binder-backend.onrender.com"
-const ACCESS_TOKEN_STORAGE_KEY = "mtg-binder-access-token-v1"
+const ACCESS_TOKEN_STORAGE_KEY = "mtg-binder-write-token"
 
 export const READONLY_QR_ACCESS_TOKEN = "mtg-binder-readonly-token"
 
