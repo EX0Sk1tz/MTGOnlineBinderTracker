@@ -323,7 +323,7 @@ p {
 }
 
 .binder-card.is-foil .binder-card-foil-overlay {
-  opacity: 0.5;
+  opacity: 0.8;
   background:
     linear-gradient(
       115deg,
