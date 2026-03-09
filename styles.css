@@ -323,7 +323,7 @@ p {
 }
 
 .binder-card.is-foil .binder-card-foil-overlay {
-  opacity: 0.9;
+  opacity: 0.6;
   background:
     linear-gradient(
       120deg,
@@ -345,7 +345,7 @@ p {
 }
 
 .binder-card.is-foil:hover .binder-card-foil-overlay {
-  opacity: 0.68;
+  opacity: 0.75;
 }
 
 .binder-card.is-etched .binder-card-foil-overlay {
