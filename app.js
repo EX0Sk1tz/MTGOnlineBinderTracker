@@ -669,6 +669,13 @@ function getPrimaryCardTypeFromItem(item) {
 
 function createBinderCard(item) {
   const node = els.template.content.firstElementChild.cloneNode(true);
+  if (item.finish === "foil") {
+    node.classList.add("is-foil")
+  }
+
+  if (item.finish === "etched") {
+    node.classList.add("is-etched")
+  }
 
   const img = node.querySelector(".binder-card-image");
   const title = node.querySelector(".binder-card-title");
