@@ -816,6 +816,14 @@ p {
 }
 
 @media (max-width: 640px) {
+  .app-shell {
+    width: calc(100% - 16px);
+    margin:
+      calc(8px + var(--safe-top))
+      auto
+      calc(14px + var(--safe-bottom));
+  }
+
   .app-dialog,
   .app-dialog-wide {
     width: 100vw;
@@ -846,11 +854,48 @@ p {
 
   .printing-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
+    gap: 8px;
   }
 
   .binder-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    padding-inline: 2px;
+  }
+
+  .binder-card-body {
+    padding: 10px;
+    gap: 10px;
+  }
+
+  .binder-card-title {
+    font-size: 15px;
+    line-height: 1.15;
+  }
+
+  .binder-card-setcode {
+    font-size: 10px;
+    padding: 4px 7px;
+  }
+
+  .binder-card-info {
+    gap: 6px;
+  }
+
+  .info-pill {
+    font-size: 11px;
+    padding: 7px 9px;
+  }
+
+  .binder-card-actions {
+    gap: 8px;
+  }
+
+  .binder-card-actions button {
+    width: 100%;
+    min-height: 38px;
+    padding: 8px 10px;
+    font-size: 12px;
   }
 
   .toast-container {
@@ -867,29 +912,38 @@ p {
 
   .binder-card-header {
     align-items: flex-start;
+    gap: 6px;
   }
 
   .binder-card-header-right {
     align-items: flex-end;
+    gap: 6px;
   }
 
   .cardmarket-link {
-    font-size: 11px;
-    padding: 6px 9px;
+    font-size: 10px;
+    padding: 5px 8px;
+    min-height: 26px;
   }
 }
 
 @media (max-width: 420px) {
-  .printing-grid {
-    grid-template-columns: 1fr 1fr;
+  .binder-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
   }
 
-  .printing-option-title {
-    font-size: 13px;
+  .binder-card-title {
+    font-size: 14px;
   }
 
-  .printing-option-meta,
-  .printing-option-price {
+  .info-pill {
+    font-size: 10px;
+    padding: 6px 8px;
+  }
+
+  .binder-card-actions button {
     font-size: 11px;
+    min-height: 36px;
   }
 }
